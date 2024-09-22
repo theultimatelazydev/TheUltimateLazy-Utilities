@@ -1,0 +1,25 @@
+{
+  "name": "dev.theultimatelazy.utilities",
+  "version": "1.0.0",
+  "displayName": "The Ultimate Lazy Utilities",
+  "description": "I compiled a bunch of utilities for Unity in this pack so I don't have to keep rewriting them.",
+  "keywords": [
+    "config",
+    "utilities",
+    "util"
+  ],
+  "author": {
+    "name": "The Ultimate Lazy Dev",
+    "email": "contact@theultimatelazy.dev",
+    "url": ""
+  },
+  "category": "Modules",
+  "relatedPackages": {},
+  "repository": {
+    "url": "",
+    "type": "git",
+    "revision": ""
+  },
+  "documentationUrl": "",
+  "unity": "2020.1"
+}
