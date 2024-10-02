@@ -6,10 +6,21 @@ using UnityEditor;
 
 namespace UltimateLazy.Tools.Editor
 {
+    [InitializeOnLoad]
     public class EditorWindowTitleModifier
     {
+        private static bool _autoUpdate = true;
+
         private static string _defaultTitle = "{activeScene} - {applicationTitle} - {platform} - {unityVersion} - {gitBranch}";
         private const string kEditorPrefsKey = "tuld_WindowTitle";
+        
+        static EditorWindowTitleModifier()
+        {
+            if (_autoUpdate)
+            {
+                EditorApplication.update += UpdateWindowTitle;
+            }
+        }
         
         [MenuItem("Tools/The Ultimate Lazy Dev/Editor/Update Main Window Title", priority = 2)]
         public static void UpdateWindowTitle()
