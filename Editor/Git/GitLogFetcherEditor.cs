@@ -23,7 +23,7 @@ namespace UltimateLazy.Tools.Editor
             }
 
             // Detect the default base branch dynamically
-            var mainBranch = GetDefaultBaseBranch();
+            var mainBranch = GitUtils.GetDefaultBaseBranch();
             if (string.IsNullOrEmpty(mainBranch))
             {
                 Logger.LogError("Could not determine the default base branch.");
@@ -50,35 +50,6 @@ namespace UltimateLazy.Tools.Editor
             {
                 Logger.Log($"Commits in branch {branchName} since its creation:\n{logOutput}");
             }
-        }
-
-        private static string GetDefaultBaseBranch()
-        {
-            // Check the remote HEAD reference to find the default branch
-            var defaultBranchOutput = GitUtils
-                .RunGitCommand("symbolic-ref refs/remotes/origin/HEAD")
-                .Trim();
-            if (!string.IsNullOrEmpty(defaultBranchOutput))
-            {
-                // Extract the branch name from the output
-                var defaultBranch = defaultBranchOutput.Replace("refs/remotes/origin/", "").Trim();
-                return defaultBranch;
-            }
-
-            // Fallback: Look for common default branches if HEAD reference is not found
-            var commonBranches = new[] { "main", "master", "dev" };
-            foreach (var branch in commonBranches)
-            {
-                var branchExists = !string.IsNullOrEmpty(
-                    GitUtils.RunGitCommand($"rev-parse --verify origin/{branch}").Trim()
-                );
-                if (branchExists)
-                {
-                    return branch;
-                }
-            }
-
-            return null; // No base branch found
         }
     }
 }

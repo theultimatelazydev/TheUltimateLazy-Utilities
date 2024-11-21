@@ -8,7 +8,8 @@ namespace UltimateLazy.Tools.Editor
     public static class GitInfoEditor
     {
         public static string GitBranch { get; private set; }
-        
+        public static string GitBaseBranch { get; private set; }
+
         static GitInfoEditor()
         {
             EditorApplication.update += Update;
@@ -17,11 +18,12 @@ namespace UltimateLazy.Tools.Editor
         private static void Update()
         {
             EditorApplication.update -= Update;
-            
+
             if (GitUtils.IsGitRepository())
             {
                 GitBranch = GitUtils.GetCurrentGitBranch();
-                Logger.Log($"Current branch: {GitBranch}");
+                GitBaseBranch = GitUtils.GetDefaultBaseBranch();
+                Logger.Log($"Current branch: {GitBranch}\n" + $"Base branch: {GitBaseBranch}");
             }
             else
             {
