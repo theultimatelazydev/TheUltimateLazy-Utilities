@@ -41,33 +41,59 @@ namespace UltimateLazy.Tools.Editor
             }
         }
 
-        public static string GetDefaultBaseBranch()
+        public static string GetClosestBaseBranch(string currentBranch)
         {
-            // Check the remote HEAD reference to find the default branch
-            var defaultBranchOutput = GitUtils
-                .RunGitCommand("symbolic-ref refs/remotes/origin/HEAD")
-                .Trim();
-            if (!string.IsNullOrEmpty(defaultBranchOutput))
+            // Get all local branches
+            var branchesOutput = RunGitCommand("branch --list").Trim();
+            if (string.IsNullOrEmpty(branchesOutput))
             {
-                // Extract the branch name from the output
-                var defaultBranch = defaultBranchOutput.Replace("refs/remotes/origin/", "").Trim();
-                return defaultBranch;
+                return null;
             }
 
-            // Fallback: Look for common default branches if HEAD reference is not found
-            var commonBranches = new[] { "main", "master", "dev" };
-            foreach (var branch in commonBranches)
+            var branches = branchesOutput.Split('\n');
+            string closestBranch = null;
+            string closestMergeBase = null;
+
+            foreach (var branch in branches)
             {
-                var branchExists = !string.IsNullOrEmpty(
-                    GitUtils.RunGitCommand($"rev-parse --verify origin/{branch}").Trim()
-                );
-                if (branchExists)
+                var branchName = branch.Replace("*", "").Trim(); // Remove the active branch indicator (*)
+                if (branchName == currentBranch)
+                    continue; // Skip the current branch
+
+                // Get the merge base with this branch
+                var mergeBase = RunGitCommand($"merge-base {currentBranch} {branchName}").Trim();
+                if (string.IsNullOrEmpty(mergeBase))
+                    continue;
+
+                // Check if this is the closest branch (most recent common ancestor)
+                if (
+                    string.IsNullOrEmpty(closestMergeBase)
+                    || IsMergeBaseCloser(mergeBase, closestMergeBase)
+                )
                 {
-                    return branch;
+                    closestBranch = branchName;
+                    closestMergeBase = mergeBase;
                 }
             }
 
-            return null; // No base branch found
+            return closestBranch;
+        }
+
+        private static bool IsMergeBaseCloser(string mergeBaseA, string mergeBaseB)
+        {
+            // Compare two merge bases: the closer one will have a more recent commit date
+            var commitDateA = RunGitCommand($"show -s --format=%ct {mergeBaseA}").Trim();
+            var commitDateB = RunGitCommand($"show -s --format=%ct {mergeBaseB}").Trim();
+
+            if (
+                long.TryParse(commitDateA, out var dateA)
+                && long.TryParse(commitDateB, out var dateB)
+            )
+            {
+                return dateA > dateB; // Return true if mergeBaseA is more recent
+            }
+
+            return false;
         }
     }
 }

@@ -22,7 +22,7 @@ namespace UltimateLazy.Tools.Editor
             if (GitUtils.IsGitRepository())
             {
                 GitBranch = GitUtils.GetCurrentGitBranch();
-                GitBaseBranch = GitUtils.GetDefaultBaseBranch();
+                GitBaseBranch = GitUtils.GetClosestBaseBranch(GitBranch);
                 Logger.Log($"Current branch: {GitBranch}\n" + $"Base branch: {GitBaseBranch}");
             }
             else
