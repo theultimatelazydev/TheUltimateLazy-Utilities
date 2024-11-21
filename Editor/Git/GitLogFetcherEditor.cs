@@ -18,32 +18,29 @@ namespace UltimateLazy.Tools.Editor
             var branchName = GitUtils.GetCurrentGitBranch().Trim();
             if (string.IsNullOrEmpty(branchName))
             {
-                UnityEngine.Debug.LogError("Could not determine the current branch name.");
+                Logger.LogError("Could not determine the current branch name.");
                 return;
             }
 
-            // Find the merge base (common ancestor) with main, master or dev
-            var mainBranch = "dev";
+            // Detect the default base branch dynamically
+            var mainBranch = GetDefaultBaseBranch();
+            if (string.IsNullOrEmpty(mainBranch))
+            {
+                Logger.LogError("Could not determine the default base branch.");
+                return;
+            }
+
+            // Find the merge base (common ancestor) with the detected base branch
             var mergeBase = GitUtils.RunGitCommand($"merge-base {branchName} {mainBranch}").Trim();
             if (string.IsNullOrEmpty(mergeBase))
             {
-                mainBranch = "main"; // Fall back to "master" if "main" doesn't exist
-                mergeBase = GitUtils.RunGitCommand($"merge-base {branchName} {mainBranch}").Trim();
-            }
-
-            if (string.IsNullOrEmpty(mergeBase))
-            {
-                mainBranch = "master"; // Fall back to "master" if "main" doesn't exist
-                mergeBase = GitUtils.RunGitCommand($"merge-base {branchName} {mainBranch}").Trim();
-            }
-
-            if (string.IsNullOrEmpty(mergeBase))
-            {
-                Logger.LogError("Could not determine the merge base with the main branch.");
+                Logger.LogError(
+                    $"Could not determine the merge base with the base branch {mainBranch}."
+                );
                 return;
             }
 
-            // Log commits from the current branch since it diverged from main or master
+            // Log commits from the current branch since it diverged from the base branch
             var logOutput = GitUtils.RunGitCommand($"log {branchName} --oneline --not {mergeBase}");
             if (string.IsNullOrEmpty(logOutput))
             {
@@ -53,6 +50,35 @@ namespace UltimateLazy.Tools.Editor
             {
                 Logger.Log($"Commits in branch {branchName} since its creation:\n{logOutput}");
             }
+        }
+
+        private static string GetDefaultBaseBranch()
+        {
+            // Check the remote HEAD reference to find the default branch
+            var defaultBranchOutput = GitUtils
+                .RunGitCommand("symbolic-ref refs/remotes/origin/HEAD")
+                .Trim();
+            if (!string.IsNullOrEmpty(defaultBranchOutput))
+            {
+                // Extract the branch name from the output
+                var defaultBranch = defaultBranchOutput.Replace("refs/remotes/origin/", "").Trim();
+                return defaultBranch;
+            }
+
+            // Fallback: Look for common default branches if HEAD reference is not found
+            var commonBranches = new[] { "main", "master", "dev" };
+            foreach (var branch in commonBranches)
+            {
+                var branchExists = !string.IsNullOrEmpty(
+                    GitUtils.RunGitCommand($"rev-parse --verify origin/{branch}").Trim()
+                );
+                if (branchExists)
+                {
+                    return branch;
+                }
+            }
+
+            return null; // No base branch found
         }
     }
 }
