@@ -1,6 +1,6 @@
 {
     "name": "UltimateLazy.Tools.Editor",
-    "rootNamespace": "",
+    "rootNamespace": "UltimateLazy.Tools.Editor",
     "references": [],
     "includePlatforms": [
         "Editor"
