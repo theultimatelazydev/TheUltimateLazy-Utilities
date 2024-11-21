@@ -41,7 +41,7 @@ namespace UltimateLazy.Tools.Editor
             }
         }
 
-        public static string GetClosestBaseBranch(string currentBranch)
+        public static string GetTrueBaseBranch(string currentBranch)
         {
             // Get all local branches
             var branchesOutput = RunGitCommand("branch --list").Trim();
@@ -63,6 +63,14 @@ namespace UltimateLazy.Tools.Editor
                 // Get the merge base with this branch
                 var mergeBase = RunGitCommand($"merge-base {currentBranch} {branchName}").Trim();
                 if (string.IsNullOrEmpty(mergeBase))
+                    continue;
+
+                // Check if the merge base is an ancestor of the current branch
+                var isAncestor = RunGitCommand(
+                        $"git merge-base --is-ancestor {mergeBase} {currentBranch}"
+                    )
+                    .Trim();
+                if (isAncestor != "true")
                     continue;
 
                 // Check if this is the closest branch (most recent common ancestor)

@@ -23,7 +23,7 @@ namespace UltimateLazy.Tools.Editor
             }
 
             // Detect the default base branch dynamically
-            var mainBranch = GitUtils.GetClosestBaseBranch(branchName);
+            var mainBranch = GitUtils.GetTrueBaseBranch(branchName);
             if (string.IsNullOrEmpty(mainBranch))
             {
                 Logger.LogError("Could not determine the default base branch.");
