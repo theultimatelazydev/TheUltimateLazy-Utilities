@@ -17,9 +17,31 @@ namespace UltimateLazy.Tools.Editor
         private Dictionary<string, List<IUltimateLazyToolWindowTab>> toolsByTab;
         private string[] tabNames;
         private int selectedTabIndex = 0;
+        private string initialTabName;
 
         protected abstract string WindowName { get; } // Each window specifies its unique name
         protected virtual WindowLayout Layout => WindowLayout.Tabs; // Default to Tabs layout
+
+        public void ChangeTab(string tabName)
+        {
+            initialTabName = tabName;
+
+            // Refresh the tools if already initialized
+            if (toolsByTab != null && tabNames != null)
+            {
+                selectedTabIndex = Array.IndexOf(tabNames, initialTabName);
+                if (selectedTabIndex == -1)
+                {
+                    Debug.LogWarning(
+                        $"Tab '{initialTabName}' not found. Defaulting to the first tab."
+                    );
+                    selectedTabIndex = 0;
+                }
+
+                // Force a repaint to update the UI
+                Repaint();
+            }
+        }
 
         public void RefreshTools()
         {
@@ -53,6 +75,19 @@ namespace UltimateLazy.Tools.Editor
 
             // Cache tab names for use in GUI
             tabNames = toolsByTab.Keys.ToArray();
+
+            // Set the initial tab if specified
+            if (!string.IsNullOrEmpty(initialTabName))
+            {
+                selectedTabIndex = Array.IndexOf(tabNames, initialTabName);
+                if (selectedTabIndex == -1)
+                {
+                    Debug.LogWarning(
+                        $"Tab '{initialTabName}' not found. Defaulting to the first tab."
+                    );
+                    selectedTabIndex = 0;
+                }
+            }
         }
 
         private void OnEnable()
