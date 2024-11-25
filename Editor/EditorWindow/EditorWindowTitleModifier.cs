@@ -17,8 +17,18 @@ namespace UltimateLazy.Tools.Editor
         private static string _title = string.Empty;
         private const string kEditorPrefsKey = "tuld_WindowTitle";
 
-        public string WindowName => "Editor Window Title Modifier";
+        public string WindowName => "The Ultimate Lazy Tools";
         public string TabName => "Editor Window Title Modifier";
+
+        [MenuItem(
+            "Tools/The Ultimate Lazy Dev/Unity Editor/Editor Window Title Modifier",
+            priority = 2
+        )]
+        public static void ShowWindow()
+        {
+            var window = EditorWindow.GetWindow<MainWindow>();
+            window.ChangeTab("Editor Window Title Modifier");
+        }
 
         static EditorWindowTitleModifier()
         {

@@ -9,23 +9,22 @@ using Logger = UnityEngine.Debug;
 
 namespace UltimateLazy.Tools.Editor
 {
-    public class LinkXmlEditor : EditorWindow
+    public class LinkXmlEditor : IUltimateLazyToolWindowTab
     {
         private const string LinkXmlPath = "Assets/link.xml";
         private LinkXmlConfig config;
 
+        public string WindowName => "The Ultimate Lazy Tools";
+        public string TabName => "Link XML Editor";
+
         [MenuItem("Tools/The Ultimate Lazy Dev/Linker/Link XML Editor", priority = 2)]
         private static void ShowWindow()
         {
-            GetWindow<LinkXmlEditor>("Link XML Editor").Show();
+            var window = EditorWindow.GetWindow<MainWindow>();
+            window.ChangeTab("Link XML Editor");
         }
 
-        private void OnEnable()
-        {
-            LoadOrCreateConfig();
-        }
-
-        private void OnGUI()
+        public void OnGUI()
         {
             EditorGUILayout.LabelField("Add Assemblies to link.xml", EditorStyles.boldLabel);
 
@@ -81,7 +80,7 @@ namespace UltimateLazy.Tools.Editor
 
             if (config == null)
             {
-                config = CreateInstance<LinkXmlConfig>();
+                config = (LinkXmlConfig)ScriptableObject.CreateInstance(typeof(LinkXmlConfig));
                 AssetDatabase.CreateAsset(config, "Assets/LinkXmlConfig.asset");
                 AssetDatabase.SaveAssets();
                 Logger.Log("Created new LinkXmlConfig.asset");
