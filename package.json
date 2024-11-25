@@ -2,7 +2,7 @@
   "name": "dev.theultimatelazy.utilities",
   "version": "0.1.0",
   "displayName": "The Ultimate Lazy Utilities",
-  "description": "I compiled a bunch of utilities for Unity in this pack so I don't have to keep rewriting them.",
+  "description": "I compiled a bunch of utilities for Unity in this package so I don't have to keep rewriting them.",
   "keywords": [
     "config",
     "utilities",
@@ -21,5 +21,12 @@
     "revision": ""
   },
   "documentationUrl": "",
-  "unity": "2020.1"
+  "unity": "2020.1",
+  "samples": [
+    {
+      "displayName": "Dynamic Window Editor",
+      "description": "Contains examples of the dynamic window editor",
+      "path": "Samples~/DynamicWindowEditor"
+    }
+  ]
 }
