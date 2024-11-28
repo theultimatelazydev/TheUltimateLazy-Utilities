@@ -19,6 +19,9 @@ namespace UltimateLazy.Tools.Editor
         private int selectedTabIndex = 0;
         private string initialTabName;
 
+        private Vector2 sidebarScrollPosition = Vector2.zero;
+        private Vector2 contentScrollPosition = Vector2.zero;
+
         protected abstract string WindowName { get; } // Each window specifies its unique name
         protected virtual WindowLayout Layout => WindowLayout.Tabs; // Default to Tabs layout
 
@@ -128,6 +131,11 @@ namespace UltimateLazy.Tools.Editor
                     GUILayout.Space(10);
                 }
 
+                // Content Area with Scroll
+                contentScrollPosition = EditorGUILayout.BeginScrollView(
+                    contentScrollPosition,
+                    GUILayout.ExpandHeight(true)
+                );
                 if (toolsByTab.TryGetValue(tabNames[selectedTabIndex], out var toolsInTab))
                 {
                     foreach (var tool in toolsInTab)
@@ -135,6 +143,7 @@ namespace UltimateLazy.Tools.Editor
                         tool.OnGUI();
                     }
                 }
+                EditorGUILayout.EndScrollView();
             }
             else
             {
@@ -151,8 +160,12 @@ namespace UltimateLazy.Tools.Editor
             {
                 EditorGUILayout.BeginHorizontal();
 
-                // Sidebar
-                EditorGUILayout.BeginVertical(GUILayout.Width(200)); // Adjust width to match Project Settings
+                // Sidebar with Scroll
+                EditorGUILayout.BeginVertical(GUILayout.Width(200));
+                sidebarScrollPosition = EditorGUILayout.BeginScrollView(
+                    sidebarScrollPosition,
+                    GUILayout.ExpandHeight(true)
+                );
                 foreach (var (index, tabName) in tabNames.Select((name, idx) => (idx, name)))
                 {
                     var style = new GUIStyle("PreferencesSection"); // Unity's built-in style
@@ -170,10 +183,15 @@ namespace UltimateLazy.Tools.Editor
                         selectedTabIndex = index;
                     }
                 }
+                EditorGUILayout.EndScrollView();
                 EditorGUILayout.EndVertical();
 
-                // Content Area
+                // Content Area with Scroll
                 EditorGUILayout.BeginVertical(GUILayout.ExpandHeight(true));
+                contentScrollPosition = EditorGUILayout.BeginScrollView(
+                    contentScrollPosition,
+                    GUILayout.ExpandHeight(true)
+                );
                 if (toolsByTab.TryGetValue(tabNames[selectedTabIndex], out var toolsInTab))
                 {
                     foreach (var tool in toolsInTab)
@@ -181,6 +199,7 @@ namespace UltimateLazy.Tools.Editor
                         tool.OnGUI();
                     }
                 }
+                EditorGUILayout.EndScrollView();
                 EditorGUILayout.EndVertical();
 
                 EditorGUILayout.EndHorizontal();
