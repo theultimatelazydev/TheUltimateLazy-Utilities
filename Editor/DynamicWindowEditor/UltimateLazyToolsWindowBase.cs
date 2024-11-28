@@ -24,6 +24,8 @@ namespace UltimateLazy.Tools.Editor
 
         protected abstract string WindowName { get; } // Each window specifies its unique name
         protected virtual WindowLayout Layout => WindowLayout.Tabs; // Default to Tabs layout
+        protected virtual float MinWidth => 400f; // Default minimum width
+        protected virtual float MinHeight => 300f; // Default minimum height
 
         public void ChangeTab(string tabName)
         {
@@ -96,6 +98,9 @@ namespace UltimateLazy.Tools.Editor
         private void OnEnable()
         {
             RefreshTools();
+
+            // Apply minimum size constraints
+            minSize = new Vector2(MinWidth, MinHeight);
         }
 
         private void OnGUI()
@@ -138,9 +143,15 @@ namespace UltimateLazy.Tools.Editor
                 );
                 if (toolsByTab.TryGetValue(tabNames[selectedTabIndex], out var toolsInTab))
                 {
-                    foreach (var tool in toolsInTab)
+                    for (int i = 0; i < toolsInTab.Count; i++)
                     {
-                        tool.OnGUI();
+                        toolsInTab[i].OnGUI();
+
+                        // Draw divider only if it's not the last tool
+                        if (i < toolsInTab.Count - 1)
+                        {
+                            DrawDivider();
+                        }
                     }
                 }
                 EditorGUILayout.EndScrollView();
@@ -194,9 +205,15 @@ namespace UltimateLazy.Tools.Editor
                 );
                 if (toolsByTab.TryGetValue(tabNames[selectedTabIndex], out var toolsInTab))
                 {
-                    foreach (var tool in toolsInTab)
+                    for (int i = 0; i < toolsInTab.Count; i++)
                     {
-                        tool.OnGUI();
+                        toolsInTab[i].OnGUI();
+
+                        // Draw divider only if it's not the last tool
+                        if (i < toolsInTab.Count - 1)
+                        {
+                            DrawDivider();
+                        }
                     }
                 }
                 EditorGUILayout.EndScrollView();
@@ -211,6 +228,14 @@ namespace UltimateLazy.Tools.Editor
                     EditorStyles.boldLabel
                 );
             }
+        }
+
+        private void DrawDivider()
+        {
+            GUILayout.Space(5);
+            var rect = EditorGUILayout.GetControlRect(false, 1);
+            EditorGUI.DrawRect(rect, new Color(0.3f, 0.3f, 0.3f, 1f)); // Dark gray divider line
+            GUILayout.Space(5);
         }
 
         private Texture2D MakeTexture(int width, int height, Color color)
