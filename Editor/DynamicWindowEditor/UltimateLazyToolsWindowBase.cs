@@ -132,29 +132,14 @@ namespace UltimateLazy.Tools.Editor
                         GUILayout.Height(25)
                     );
 
-                    // Draw the content of the selected tab
+                    // Add space between toolbar and content
                     GUILayout.Space(10);
                 }
 
-                // Content Area with Scroll
-                contentScrollPosition = EditorGUILayout.BeginScrollView(
-                    contentScrollPosition,
-                    GUILayout.ExpandHeight(true)
-                );
                 if (toolsByTab.TryGetValue(tabNames[selectedTabIndex], out var toolsInTab))
                 {
-                    for (int i = 0; i < toolsInTab.Count; i++)
-                    {
-                        toolsInTab[i].OnGUI();
-
-                        // Draw divider only if it's not the last tool
-                        if (i < toolsInTab.Count - 1)
-                        {
-                            DrawDivider();
-                        }
-                    }
+                    DrawContent(toolsInTab); // Use the reusable method
                 }
-                EditorGUILayout.EndScrollView();
             }
             else
             {
@@ -177,6 +162,7 @@ namespace UltimateLazy.Tools.Editor
                     sidebarScrollPosition,
                     GUILayout.ExpandHeight(true)
                 );
+
                 foreach (var (index, tabName) in tabNames.Select((name, idx) => (idx, name)))
                 {
                     var style = new GUIStyle("PreferencesSection"); // Unity's built-in style
@@ -194,29 +180,16 @@ namespace UltimateLazy.Tools.Editor
                         selectedTabIndex = index;
                     }
                 }
+
                 EditorGUILayout.EndScrollView();
                 EditorGUILayout.EndVertical();
 
-                // Content Area with Scroll
+                // Content Area
                 EditorGUILayout.BeginVertical(GUILayout.ExpandHeight(true));
-                contentScrollPosition = EditorGUILayout.BeginScrollView(
-                    contentScrollPosition,
-                    GUILayout.ExpandHeight(true)
-                );
                 if (toolsByTab.TryGetValue(tabNames[selectedTabIndex], out var toolsInTab))
                 {
-                    for (int i = 0; i < toolsInTab.Count; i++)
-                    {
-                        toolsInTab[i].OnGUI();
-
-                        // Draw divider only if it's not the last tool
-                        if (i < toolsInTab.Count - 1)
-                        {
-                            DrawDivider();
-                        }
-                    }
+                    DrawContent(toolsInTab); // Use the reusable method
                 }
-                EditorGUILayout.EndScrollView();
                 EditorGUILayout.EndVertical();
 
                 EditorGUILayout.EndHorizontal();
@@ -228,6 +201,27 @@ namespace UltimateLazy.Tools.Editor
                     EditorStyles.boldLabel
                 );
             }
+        }
+
+        private void DrawContent(List<IUltimateLazyToolWindowTab> toolsInTab)
+        {
+            contentScrollPosition = EditorGUILayout.BeginScrollView(
+                contentScrollPosition,
+                GUILayout.ExpandHeight(true)
+            );
+
+            for (int i = 0; i < toolsInTab.Count; i++)
+            {
+                toolsInTab[i].OnGUI();
+
+                // Draw divider only if it's not the last tool
+                if (i < toolsInTab.Count - 1)
+                {
+                    DrawDivider();
+                }
+            }
+
+            EditorGUILayout.EndScrollView();
         }
 
         private void DrawDivider()
