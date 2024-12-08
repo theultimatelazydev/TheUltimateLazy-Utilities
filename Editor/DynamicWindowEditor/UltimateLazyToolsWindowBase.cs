@@ -27,6 +27,10 @@ namespace UltimateLazy.Tools.Editor
         protected virtual float MinWidth => 400f; // Default minimum width
         protected virtual float MinHeight => 300f; // Default minimum height
 
+        private float sidebarWidth = 200f; // Initial width of the sidebar
+        private bool isResizing = false; // Tracks if the user is resizing
+        private float resizeHandleWidth = 5f; // Width of the draggable area
+
         public void ChangeTab(string tabName)
         {
             initialTabName = tabName;
@@ -157,7 +161,7 @@ namespace UltimateLazy.Tools.Editor
                 EditorGUILayout.BeginHorizontal();
 
                 // Sidebar with Scroll
-                EditorGUILayout.BeginVertical(GUILayout.Width(200));
+                EditorGUILayout.BeginVertical(GUILayout.Width(sidebarWidth));
                 sidebarScrollPosition = EditorGUILayout.BeginScrollView(
                     sidebarScrollPosition,
                     GUILayout.ExpandHeight(true)
@@ -165,14 +169,14 @@ namespace UltimateLazy.Tools.Editor
 
                 foreach (var (index, tabName) in tabNames.Select((name, idx) => (idx, name)))
                 {
-                    var style = new GUIStyle("PreferencesSection"); // Unity's built-in style
+                    var style = new GUIStyle("PreferencesSection");
                     style.alignment = TextAnchor.MiddleLeft;
-                    style.fixedHeight = 30; // Adjust the height for a compact view
+                    style.fixedHeight = 30;
 
                     if (index == selectedTabIndex)
                     {
-                        style.normal.textColor = Color.white; // Highlight text
-                        style.normal.background = MakeTexture(1, 1, new Color(0.22f, 0.36f, 0.53f)); // Custom highlight color
+                        style.normal.textColor = Color.white;
+                        style.normal.background = MakeTexture(1, 1, new Color(0.22f, 0.36f, 0.53f));
                     }
 
                     if (GUILayout.Button(tabName, style))
@@ -184,12 +188,29 @@ namespace UltimateLazy.Tools.Editor
                 EditorGUILayout.EndScrollView();
                 EditorGUILayout.EndVertical();
 
-                // Content Area
+                // Draw a thin black line as the divider
+                var dividerRect = new Rect(sidebarWidth, 0, 1, position.height);
+                EditorGUI.DrawRect(dividerRect, Color.black); // Thin black line for the divider
+
+                // Invisible resizing handle
+                var resizeHandleRect = new Rect(sidebarWidth - 2, 0, 5, position.height);
+                EditorGUIUtility.AddCursorRect(resizeHandleRect, MouseCursor.ResizeHorizontal);
+
+                HandleSidebarResizing(resizeHandleRect);
+
+                // Content Area with Scroll
                 EditorGUILayout.BeginVertical(GUILayout.ExpandHeight(true));
+                contentScrollPosition = EditorGUILayout.BeginScrollView(
+                    contentScrollPosition,
+                    GUILayout.ExpandHeight(true)
+                );
+
                 if (toolsByTab.TryGetValue(tabNames[selectedTabIndex], out var toolsInTab))
                 {
-                    DrawContent(toolsInTab); // Use the reusable method
+                    DrawContent(toolsInTab);
                 }
+
+                EditorGUILayout.EndScrollView();
                 EditorGUILayout.EndVertical();
 
                 EditorGUILayout.EndHorizontal();
@@ -200,6 +221,40 @@ namespace UltimateLazy.Tools.Editor
                     $"No tools found for {WindowName}!",
                     EditorStyles.boldLabel
                 );
+            }
+        }
+
+        private void HandleSidebarResizing(Rect resizeHandleRect)
+        {
+            Event e = Event.current;
+
+            switch (e.type)
+            {
+                case EventType.MouseDown:
+                    if (resizeHandleRect.Contains(e.mousePosition))
+                    {
+                        isResizing = true;
+                        e.Use();
+                    }
+                    break;
+
+                case EventType.MouseDrag:
+                    if (isResizing)
+                    {
+                        sidebarWidth += e.delta.x;
+                        sidebarWidth = Mathf.Clamp(sidebarWidth, 100f, position.width - 100f); // Prevent extreme sizes
+                        e.Use();
+                        Repaint();
+                    }
+                    break;
+
+                case EventType.MouseUp:
+                    if (isResizing)
+                    {
+                        isResizing = false;
+                        e.Use();
+                    }
+                    break;
             }
         }
 
