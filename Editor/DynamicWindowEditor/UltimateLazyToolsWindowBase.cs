@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
+using UnityEditor.IMGUI.Controls;
 using UnityEngine;
 
 namespace UltimateLazy.Tools.Editor
@@ -14,48 +15,55 @@ namespace UltimateLazy.Tools.Editor
 
     public abstract class UltimateLazyToolsWindowBase : EditorWindow
     {
-        private Dictionary<string, List<IUltimateLazyToolWindowTab>> toolsByTab;
-        private string[] tabNames;
-        private int selectedTabIndex = 0;
-        private string initialTabName;
+        private DynamicTabDictionary _tabs;
+        private List<string> _parentTabs;
+        private Dictionary<string, DynamicTabDictionary> _childTabsByParent;
+        private Dictionary<string, bool> _foldoutStates = new Dictionary<string, bool>();
 
-        private Vector2 sidebarScrollPosition = Vector2.zero;
-        private Vector2 contentScrollPosition = Vector2.zero;
+        private TreeViewState _treeViewState;
+        private UltimateLazyDynamicTreeView _treeView;
 
-        protected abstract string WindowName { get; } // Each window specifies its unique name
-        protected virtual WindowLayout Layout => WindowLayout.Tabs; // Default to Tabs layout
-        protected virtual float MinWidth => 400f; // Default minimum width
-        protected virtual float MinHeight => 300f; // Default minimum height
+        private IUltimateLazyToolWindowTab _selectedTab;
+        private string _selectedToolName;
 
-        private float sidebarWidth = 200f; // Initial width of the sidebar
-        private bool isResizing = false; // Tracks if the user is resizing
-        private float resizeHandleWidth = 5f; // Width of the draggable area
+        private List<string> _tabNames;
+        private int _selectedTabIndex;
+        private string _initialTabName;
+
+        private Vector2 _sidebarScrollPosition;
+        private Vector2 _contentScrollPosition;
+
+        protected abstract string WindowName { get; }
+        protected virtual WindowLayout Layout => WindowLayout.Tabs;
+        protected virtual float MinWidth => 400f;
+        protected virtual float MinHeight => 300f;
+
+        private float _sidebarWidth = 200f;
+        private bool _isResizing;
+        private float _resizeHandleWidth = 5f;
 
         public void ChangeTab(string tabName)
         {
-            initialTabName = tabName;
+            _initialTabName = tabName;
 
-            // Refresh the tools if already initialized
-            if (toolsByTab != null && tabNames != null)
+            if (_tabs != null && _tabNames != null)
             {
-                selectedTabIndex = Array.IndexOf(tabNames, initialTabName);
-                if (selectedTabIndex == -1)
+                _selectedTabIndex = _tabNames.IndexOf(_initialTabName);
+                if (_selectedTabIndex == -1)
                 {
                     Debug.LogWarning(
-                        $"Tab '{initialTabName}' not found. Defaulting to the first tab."
+                        $"Tab '{_initialTabName}' not found. Defaulting to the first tab."
                     );
-                    selectedTabIndex = 0;
+                    _selectedTabIndex = 0;
                 }
 
-                // Force a repaint to update the UI
                 Repaint();
             }
         }
 
-        public void RefreshTools()
+        public void RefreshTabs()
         {
-            // Find all tools implementing IUltimateLazyToolWindowTab
-            var toolTypes = AppDomain
+            var tabsTypes = AppDomain
                 .CurrentDomain.GetAssemblies()
                 .SelectMany(assembly => assembly.GetTypes())
                 .Where(type =>
@@ -64,85 +72,93 @@ namespace UltimateLazy.Tools.Editor
                     && !type.IsAbstract
                 );
 
-            // Filter tools for the specific window
-            toolsByTab = new Dictionary<string, List<IUltimateLazyToolWindowTab>>();
-            foreach (var type in toolTypes)
+            _tabNames = new List<string>();
+            _childTabsByParent = new Dictionary<string, DynamicTabDictionary>();
+            _tabs = new DynamicTabDictionary();
+            _parentTabs = new List<string>();
+
+            foreach (var tabType in tabsTypes)
             {
-                var toolInstance = (IUltimateLazyToolWindowTab)Activator.CreateInstance(type);
-                if (toolInstance.WindowName != WindowName)
-                    continue; // Skip tools not belonging to this window
+                var tab = (IUltimateLazyToolWindowTab)Activator.CreateInstance(tabType);
 
-                if (string.IsNullOrEmpty(toolInstance.TabName))
-                    continue; // Skip tools that don't have a tab
+                if (tab.WindowName != WindowName)
+                    continue;
 
-                if (!toolsByTab.ContainsKey(toolInstance.TabName))
+                var tabElement = new DynamicWindowTabElement(tab);
+
+                if (tabElement.HasParent)
                 {
-                    toolsByTab[toolInstance.TabName] = new List<IUltimateLazyToolWindowTab>();
+                    if (!_childTabsByParent.ContainsKey(tabElement.ParentTabName))
+                        _childTabsByParent[tabElement.ParentTabName] = new DynamicTabDictionary();
+
+                    _childTabsByParent[tabElement.ParentTabName]
+                        .AddTab(tabElement.DisplayName, tabElement);
+
+                    if (!_parentTabs.Contains(tabElement.ParentTabName))
+                    {
+                        _parentTabs.Add(tabElement.ParentTabName);
+                    }
                 }
-                toolsByTab[toolInstance.TabName].Add(toolInstance);
+                else
+                {
+                    if (!_parentTabs.Contains(tabElement.TabName))
+                    {
+                        _parentTabs.Add(tabElement.TabName);
+                    }
+                }
+
+                _tabNames.Add(tabElement.TabName);
+                _tabs.AddTab(tabElement.TabName, tabElement);
             }
 
-            // Cache tab names for use in GUI
-            tabNames = toolsByTab.Keys.ToArray();
-
-            // Set the initial tab if specified
-            if (!string.IsNullOrEmpty(initialTabName))
+            _parentTabs.Sort();
+            foreach (var key in _childTabsByParent.Keys.ToList())
             {
-                selectedTabIndex = Array.IndexOf(tabNames, initialTabName);
-                if (selectedTabIndex == -1)
-                {
-                    Debug.LogWarning(
-                        $"Tab '{initialTabName}' not found. Defaulting to the first tab."
-                    );
-                    selectedTabIndex = 0;
-                }
+                _childTabsByParent[key].Sort();
             }
         }
 
         private void OnEnable()
         {
-            RefreshTools();
-
-            // Apply minimum size constraints
+            RefreshTabs();
             minSize = new Vector2(MinWidth, MinHeight);
         }
 
         private void OnGUI()
         {
-            if (toolsByTab == null || tabNames == null)
+            if (_tabs == null || _tabNames == null)
             {
-                RefreshTools(); // Refresh if not initialized
+                RefreshTabs();
             }
 
-            if (Layout == WindowLayout.Tabs)
+            switch (Layout)
             {
-                DrawTabsLayout();
-            }
-            else if (Layout == WindowLayout.Sidebar)
-            {
-                DrawSidebarLayout();
+                case WindowLayout.Tabs:
+                    DrawTabsLayout();
+                    break;
+                case WindowLayout.Sidebar:
+                    DrawSidebarLayout();
+                    break;
             }
         }
 
         private void DrawTabsLayout()
         {
-            if (tabNames.Length > 0)
+            if (_tabNames.Count > 0)
             {
-                if (tabNames.Length > 1)
+                if (_tabNames.Count > 1)
                 {
-                    selectedTabIndex = GUILayout.Toolbar(
-                        selectedTabIndex,
-                        tabNames,
+                    _selectedTabIndex = GUILayout.Toolbar(
+                        _selectedTabIndex,
+                        _tabNames.ToArray(),
                         GUILayout.Height(25)
                     );
-
-                    // Add space between toolbar and content
                     GUILayout.Space(10);
                 }
 
-                if (toolsByTab.TryGetValue(tabNames[selectedTabIndex], out var toolsInTab))
+                if (_tabs.TryGetValue(_tabNames[_selectedTabIndex], out var toolsInTab))
                 {
-                    DrawContent(toolsInTab); // Use the reusable method
+                    DrawContent(toolsInTab);
                 }
             }
             else
@@ -156,120 +172,127 @@ namespace UltimateLazy.Tools.Editor
 
         private void DrawSidebarLayout()
         {
-            if (tabNames.Length > 0)
+            EditorGUILayout.BeginHorizontal();
+
+            EditorGUILayout.BeginVertical(GUILayout.Width(_sidebarWidth));
+            DrawSidebarTreeView();
+            EditorGUILayout.EndVertical();
+
+            DrawDivider();
+            DrawContentArea();
+
+            EditorGUILayout.EndHorizontal();
+        }
+
+        private void InitializeTreeView()
+        {
+            if (_treeViewState == null)
+                _treeViewState = new TreeViewState();
+
+            _treeView = new UltimateLazyDynamicTreeView(
+                _treeViewState,
+                _parentTabs,
+                _childTabsByParent
+            );
+            _treeView.OnTabSelected += OnTabSelected;
+        }
+
+        private void DrawSidebarTreeView()
+        {
+            if (_treeView == null)
+                InitializeTreeView();
+
+            Rect treeViewRect = GUILayoutUtility.GetRect(_sidebarWidth, position.height);
+            _treeView.OnGUI(treeViewRect);
+        }
+
+        private void OnTabSelected(string selectedElement)
+        {
+            _selectedToolName = selectedElement;
+            Repaint();
+        }
+
+        private void DrawContentArea()
+        {
+            EditorGUILayout.BeginVertical();
+            _contentScrollPosition = EditorGUILayout.BeginScrollView(_contentScrollPosition);
+
+            if (_selectedTab != null)
             {
-                EditorGUILayout.BeginHorizontal();
-
-                // Sidebar with Scroll
-                EditorGUILayout.BeginVertical(GUILayout.Width(sidebarWidth));
-                sidebarScrollPosition = EditorGUILayout.BeginScrollView(
-                    sidebarScrollPosition,
-                    GUILayout.ExpandHeight(true)
-                );
-
-                foreach (var (index, tabName) in tabNames.Select((name, idx) => (idx, name)))
+                _selectedTab.OnGUI();
+            }
+            else if (!string.IsNullOrEmpty(_selectedToolName))
+            {
+                if (_tabs.TryGetValue(_selectedToolName, out var toolsInTab))
                 {
-                    var style = new GUIStyle("PreferencesSection");
-                    style.alignment = TextAnchor.MiddleLeft;
-                    style.fixedHeight = 30;
-
-                    if (index == selectedTabIndex)
+                    foreach (var tool in toolsInTab)
                     {
-                        style.normal.textColor = Color.white;
-                        style.normal.background = MakeTexture(1, 1, new Color(0.22f, 0.36f, 0.53f));
-                    }
-
-                    if (GUILayout.Button(tabName, style))
-                    {
-                        selectedTabIndex = index;
+                        tool.Tab.OnGUI();
                     }
                 }
-
-                EditorGUILayout.EndScrollView();
-                EditorGUILayout.EndVertical();
-
-                // Draw a thin black line as the divider
-                var dividerRect = new Rect(sidebarWidth, 0, 1, position.height);
-                EditorGUI.DrawRect(dividerRect, Color.black); // Thin black line for the divider
-
-                // Invisible resizing handle
-                var resizeHandleRect = new Rect(sidebarWidth - 2, 0, 5, position.height);
-                EditorGUIUtility.AddCursorRect(resizeHandleRect, MouseCursor.ResizeHorizontal);
-
-                HandleSidebarResizing(resizeHandleRect);
-
-                // Content Area with Scroll
-                EditorGUILayout.BeginVertical(GUILayout.ExpandHeight(true));
-                contentScrollPosition = EditorGUILayout.BeginScrollView(
-                    contentScrollPosition,
-                    GUILayout.ExpandHeight(true)
-                );
-
-                if (toolsByTab.TryGetValue(tabNames[selectedTabIndex], out var toolsInTab))
+                else
                 {
-                    DrawContent(toolsInTab);
+                    EditorGUILayout.LabelField(
+                        $"Selected: {_selectedToolName}",
+                        EditorStyles.boldLabel
+                    );
                 }
-
-                EditorGUILayout.EndScrollView();
-                EditorGUILayout.EndVertical();
-
-                EditorGUILayout.EndHorizontal();
             }
             else
             {
                 EditorGUILayout.LabelField(
-                    $"No tools found for {WindowName}!",
-                    EditorStyles.boldLabel
+                    "Select a tab to view its content.",
+                    EditorStyles.centeredGreyMiniLabel
                 );
             }
+
+            EditorGUILayout.EndScrollView();
+            EditorGUILayout.EndVertical();
         }
 
-        private void HandleSidebarResizing(Rect resizeHandleRect)
+        private void DrawDivider()
         {
-            Event e = Event.current;
+            var dividerRect = new Rect(_sidebarWidth, 0, 1, position.height);
+            EditorGUI.DrawRect(dividerRect, Color.black);
 
-            switch (e.type)
+            var resizeHandleRect = new Rect(_sidebarWidth - 2, 0, 5, position.height);
+            EditorGUIUtility.AddCursorRect(resizeHandleRect, MouseCursor.ResizeHorizontal);
+
+            if (
+                Event.current.type == EventType.MouseDown
+                && resizeHandleRect.Contains(Event.current.mousePosition)
+            )
             {
-                case EventType.MouseDown:
-                    if (resizeHandleRect.Contains(e.mousePosition))
-                    {
-                        isResizing = true;
-                        e.Use();
-                    }
-                    break;
+                _isResizing = true;
+            }
 
-                case EventType.MouseDrag:
-                    if (isResizing)
-                    {
-                        sidebarWidth += e.delta.x;
-                        sidebarWidth = Mathf.Clamp(sidebarWidth, 100f, position.width - 100f); // Prevent extreme sizes
-                        e.Use();
-                        Repaint();
-                    }
-                    break;
+            if (_isResizing)
+            {
+                _sidebarWidth = Mathf.Clamp(
+                    Event.current.mousePosition.x,
+                    100,
+                    position.width - 200
+                );
+                Repaint();
+            }
 
-                case EventType.MouseUp:
-                    if (isResizing)
-                    {
-                        isResizing = false;
-                        e.Use();
-                    }
-                    break;
+            if (Event.current.type == EventType.MouseUp)
+            {
+                _isResizing = false;
             }
         }
 
-        private void DrawContent(List<IUltimateLazyToolWindowTab> toolsInTab)
+        private void DrawContent(List<DynamicWindowTabElement> toolsInTab)
         {
-            contentScrollPosition = EditorGUILayout.BeginScrollView(
-                contentScrollPosition,
+            _contentScrollPosition = EditorGUILayout.BeginScrollView(
+                _contentScrollPosition,
                 GUILayout.ExpandHeight(true)
             );
 
             for (int i = 0; i < toolsInTab.Count; i++)
             {
-                toolsInTab[i].OnGUI();
+                toolsInTab[i].Tab.OnGUI();
 
-                // Draw divider only if it's not the last tool
                 if (i < toolsInTab.Count - 1)
                 {
                     DrawDivider();
@@ -279,27 +302,57 @@ namespace UltimateLazy.Tools.Editor
             EditorGUILayout.EndScrollView();
         }
 
-        private void DrawDivider()
-        {
-            GUILayout.Space(5);
-            var rect = EditorGUILayout.GetControlRect(false, 1);
-            EditorGUI.DrawRect(rect, new Color(0.3f, 0.3f, 0.3f, 1f)); // Dark gray divider line
-            GUILayout.Space(5);
-        }
-
         private Texture2D MakeTexture(int width, int height, Color color)
         {
             var texture = new Texture2D(width, height);
             var pixels = new Color[width * height];
 
             for (int i = 0; i < pixels.Length; i++)
-            {
                 pixels[i] = color;
-            }
 
             texture.SetPixels(pixels);
             texture.Apply();
             return texture;
+        }
+    }
+
+    public struct DynamicWindowTabElement
+    {
+        public IUltimateLazyToolWindowTab Tab { get; }
+        public string DisplayName => Tab.TabName;
+        public string ParentTabName => Tab.ParentTabName;
+
+        public string TabName =>
+            string.IsNullOrEmpty(Tab.ParentTabName)
+                ? Tab.TabName
+                : $"{Tab.ParentTabName}/{Tab.TabName}";
+
+        public bool HasParent => !string.IsNullOrEmpty(ParentTabName);
+
+        public DynamicWindowTabElement(IUltimateLazyToolWindowTab tab)
+        {
+            Tab = tab;
+        }
+    }
+
+    public class DynamicTabDictionary : Dictionary<string, List<DynamicWindowTabElement>>
+    {
+        public void AddTab(string parent, DynamicWindowTabElement tab)
+        {
+            if (!ContainsKey(parent))
+            {
+                Add(parent, new List<DynamicWindowTabElement>());
+            }
+
+            this[parent].Add(tab);
+        }
+
+        public void Sort()
+        {
+            foreach (var key in Keys)
+            {
+                this[key].Sort((a, b) => a.DisplayName.CompareTo(b.DisplayName));
+            }
         }
     }
 }
