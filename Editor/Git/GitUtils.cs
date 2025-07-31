@@ -15,6 +15,21 @@ namespace UltimateLazy.Tools.Editor
             return RunGitCommand("rev-parse --abbrev-ref HEAD");
         }
 
+        public static string GetGitCommitHash()
+        {
+            return RunGitCommand("rev-parse HEAD");
+        }
+
+        public static string GetGitCommitHashSimplified()
+        {
+            return RunGitCommand("rev-parse --short HEAD");
+        }
+
+        public static string GetGitRemoteUrl()
+        {
+            return RunGitCommand("config --get remote.origin.url");
+        }
+
         public static string RunGitCommand(string arguments)
         {
             // Creates a new process to execute the git command
