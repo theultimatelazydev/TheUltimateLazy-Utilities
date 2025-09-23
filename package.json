@@ -1,6 +1,6 @@
 {
   "name": "dev.theultimatelazy.utilities",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "displayName": "The Ultimate Lazy Utilities",
   "description": "I compiled a bunch of utilities for Unity in this package so I don't have to keep rewriting them.",
   "keywords": [
