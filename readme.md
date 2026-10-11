@@ -4,7 +4,7 @@
 
 [![Unity](https://img.shields.io/badge/Unity-2020.1%2B-black?logo=unity)](https://unity.com/)
 [![UPM](https://img.shields.io/badge/UPM-dev.theultimatelazy.utilities-blue)](https://docs.unity3d.com/Manual/upm-git.html)
-[![Version](https://img.shields.io/badge/version-0.1.1-orange)](package.json)
+[![Version](https://img.shields.io/badge/version-0.2.0-orange)](package.json)
 
 A small, dependency-free Unity package with editor tooling and runtime bits I kept
 copy-pasting between projects: a self-populating tools window, a `link.xml` generator,
@@ -60,6 +60,7 @@ menu-item sprawl.
 | **Git Log Commits** | `… ▸ Git ▸ Log Commits` | Logs every commit on the current branch since it diverged from its base branch. |
 | **Git info API** | `UltimateLazy.Tools.Editor.GitUtils` | Branch name, commit hash, remote URL, arbitrary Git commands — from editor scripts. |
 | **Grayscale 2D shaders** | `UltimateLazyDev/2D/...` | Sprite grayscale with an adjustable blend, in Built-in and URP variants, plus ready-made materials. |
+| **Grayscale UI shader** | `UltimateLazyDev/UI/Grayscale` | The same grayscale for uGUI `Image`/`RawImage`, with mask and `RectMask2D` support, in any pipeline. |
 
 ---
 
@@ -226,6 +227,23 @@ _renderer.material.SetFloat("_Intensity", Mathf.PingPong(Time.time, 1f));
 Both variants respect sprite vertex colors and alpha blending. The runtime assembly is
 `UltimateLazy.Tools.2D`.
 
+### UI (uGUI)
+
+The 2D shaders don't support UI masking, so a grayed `Image` inside a `ScrollRect` or `Mask` would draw outside it.
+Use the UI variant for Canvas graphics instead. It's built like Unity's `UI/Default`: stencil masking, `RectMask2D`
+clipping and alpha clip, and it works in both Built-in and URP.
+
+| Shader | Material |
+| --- | --- |
+| `UltimateLazyDev/UI/Grayscale` | `2D/Runtime/Materials/UI/GrayscaleUI.mat` |
+
+Assign the material to a graphic to gray it out (for example a locked button), and set it back to `null` to restore
+the original colors:
+
+```csharp
+image.material = isLocked ? grayscaleMaterial : null;
+```
+
 ---
 
 ## Package layout
@@ -235,7 +253,9 @@ Both variants respect sprite vertex colors and alpha blending. The runtime assem
 ├── 2D/
 │   └── Runtime/
 │       ├── Materials/{BuiltIn,URP}/Grayscale.mat
+│       ├── Materials/UI/GrayscaleUI.mat
 │       ├── Shaders/{BuiltIn,URP}/Grayscale2D.shader
+│       ├── Shaders/UI/GrayscaleUI.shader
 │       └── UltimateLazy.Tools.2D.asmdef
 ├── Editor/
 │   ├── DynamicWindowEditor/     # IUltimateLazyToolWindowTab, window base, tree view
